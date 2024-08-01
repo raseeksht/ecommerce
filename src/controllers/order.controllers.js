@@ -149,14 +149,21 @@ const createOrder = asyncHandler(async (req, res) => {
 
 const getAllOrders = asyncHandler(async (req, res) => {
     // p = page number , n = number of order per page
-    let { p, n } = req.query
+    let { p, n, deliveryCompleted } = req.query
     //10 order per page by default and page number 1 if not specified
     p = (p && p >= 0) ? p : 1;
     n = n ? n : 10;
     const offset = (p - 1) * n;
-    const orders = await orderModel.find({ user: req.user._id }).skip(offset).limit(n).populate("transaction");
 
-    const totalOrders = await orderModel.countDocuments({ user: req.user._id })
+    const filter = {
+        user: req.user._id
+    }
+    if (deliveryCompleted == "1") {
+        filter.status = "DELIVERED"
+    }
+    const orders = await orderModel.find(filter).skip(offset).limit(n).populate("transaction");
+
+    const totalOrders = await orderModel.countDocuments(filter)
 
     const totalPages = Math.ceil(totalOrders / n)
 
