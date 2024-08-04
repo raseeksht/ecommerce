@@ -67,7 +67,7 @@ Features
 
 4. Run the application
     ```
-    npm run dev
+    npm start
     ```
 
 
