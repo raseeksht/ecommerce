@@ -4,6 +4,7 @@ import validator from "validator";
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { logger } from "../app.js";
+import { decodeAuthHeaderToken, verifyOTP } from "../utils/utils.functions.js";
 
 const createUser = asyncHandler(async (req, res) => {
     const { username, email, password, userType } = req.body;
@@ -21,22 +22,41 @@ const createUser = asyncHandler(async (req, res) => {
 
 
 const loginUser = asyncHandler(async (req, res) => {
-    const { usernameOrEmail, password } = req.body;
+    const { usernameOrEmail, password, otp } = req.body;
     const query = validator.isEmail(usernameOrEmail) ? { email: usernameOrEmail } : { username: usernameOrEmail }
     const user = await userModel.findOne(query);
     if (user && await user.matchPassword(password)) {
-        const reqFields = user.toObject({
-            transform: (doc, ret, option) => {
-                delete ret.password;
-                return ret;
+        const reqFields = {
+            _id: user._id,
+            username: user.username,
+            email: user.email,
+            userType: user.userType,
+            profilePic: user.profilePic
+        }
+        const payload = {
+            _id: user._id,
+            userType: user.userType,
+        }
+        let message = "Login Success";
+
+        if (user.use2FA && otp) {
+            if (!verifyOTP(otp, user.totpSecret)) {
+                throw new ApiError(400, "Invalid OTP")
             }
-        })
-        const token = await user.generateAccessToken({ _id: user._id, userType: user.userType })
-        res.json(new ApiResponse(200, "login success", { ...reqFields, token }))
+            payload.use2FA = true;
+            payload.is2FAVefified = true;
+        }
+        if (user.use2FA && !otp) {
+            throw new ApiError(401, "2FA enabled! otp required to login")
+        }
+
+        const token = await user.generateAccessToken(payload)
+        res.json(new ApiResponse(200, message, { ...reqFields, token }))
     } else {
         throw new ApiError(403, "email or password error")
     }
 })
+
 
 const editDetails = asyncHandler(async (req, res) => {
     // only username number and address are allowed to change

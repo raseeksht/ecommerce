@@ -30,7 +30,15 @@ const userSchema = Schema({
     },
     address: {
         type: String
+    },
+    use2FA: {
+        type: Boolean,
+        default: false
+    },
+    totpSecret: {
+        type: String
     }
+
 }, {
     timestamps: true
 })

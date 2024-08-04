@@ -1,5 +1,7 @@
 import { v2 as cloudinary } from 'cloudinary';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+import { TOTP } from 'totp-generator'
 
 const generatePresignedUrl = (imgType = "profile") => {
     const timestamp = Math.round((new Date).getTime() / 1000);
@@ -26,4 +28,33 @@ const generateHmacSignature = (message) => {
 
 }
 
-export { generatePresignedUrl, generateHmacSignature }
+const verifyOTP = (userOTP, secret) => {
+    console.log(userOTP, secret)
+    const currentTimestamp = Date.now()
+    const validCodes = [];
+
+    for (let i = -1; i <= 1; i++) {
+        const timestamp = currentTimestamp + (i * 30000)
+        const { otp } = TOTP.generate(secret, { timestamp })
+        validCodes.push(otp)
+    }
+    const ans = Boolean(validCodes.includes(userOTP))
+    console.log(ans)
+    return ans
+}
+
+const decodeAuthHeaderToken = (req) => {
+    const authToken = req.headers?.authorization
+    if (!(authToken && authToken.startsWith("Bearer "))) {
+        return { error: "Bearer Token Required" };
+    }
+    const token = authToken.split(" ")[1]
+    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET)
+    if (decoded) {
+        return decoded
+    } else {
+        return { error: "Token Invalid or expired" }
+    }
+}
+
+export { generatePresignedUrl, generateHmacSignature, verifyOTP, decodeAuthHeaderToken }
